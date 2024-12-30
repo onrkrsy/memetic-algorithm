@@ -152,39 +152,133 @@
                 return this.mutatePopulation(children);
             }
         }
-
+        class OptimizationStrategies {
+            static simpleSwap(route, calculateDistance) {
+                let bestRoute = [...route];
+                let bestDistance = calculateDistance(bestRoute);
+        
+                // Rastgele iki nokta seç ve swap yap
+                const i = Math.floor(Math.random() * route.length);
+                const j = Math.floor(Math.random() * route.length);
+                
+                const newRoute = [...bestRoute];
+                [newRoute[i], newRoute[j]] = [newRoute[j], newRoute[i]];
+                
+                const newDistance = calculateDistance(newRoute);
+                if (newDistance < bestDistance) {
+                    bestDistance = newDistance;
+                    bestRoute = newRoute;
+                }
+        
+                return bestRoute;
+            }
+        
+            static twoOpt(route, calculateDistance) {
+                let bestRoute = [...route];
+                let bestDistance = calculateDistance(bestRoute);
+                let improved = true;
+        
+                while (improved) {
+                    improved = false;
+                    for (let i = 0; i < route.length - 2; i++) {
+                        for (let k = i + 2; k < route.length - 1; k++) {
+                            const newRoute = OptimizationStrategies.twoOptSwap(bestRoute, i, k);
+                            const newDistance = calculateDistance(newRoute);
+        
+                            if (newDistance < bestDistance) {
+                                bestDistance = newDistance;
+                                bestRoute = [...newRoute];
+                                improved = true;
+                                break;
+                            }
+                        }
+                        if (improved) break;
+                    }
+                }
+        
+                return bestRoute;
+            }
+        
+            static twoOptSwap(route, i, k) {
+                const newRoute = [...route];
+                let left = i + 1;
+                let right = k;
+                while (left < right) {
+                    [newRoute[left], newRoute[right]] = [newRoute[right], newRoute[left]];
+                    left++;
+                    right--;
+                }
+                return newRoute;
+            }
+        
+            // Yeni optimizasyon yöntemleri buraya eklenebilir
+            static threeOpt(route, calculateDistance) {
+                // 3-opt implementasyonu
+                return route;
+            }
+            static hillClimbing(route, calculateDistance) {
+                let currentRoute = [...route];
+                let currentDistance = calculateDistance(currentRoute);
+                let improved = true;
+        
+                while (improved) {
+                    improved = false;
+                    for (let i = 0; i < route.length - 1; i++) {
+                        for (let j = i + 1; j < route.length; j++) {
+                            // İki şehri swap et
+                            const newRoute = [...currentRoute];
+                            [newRoute[i], newRoute[j]] = [newRoute[j], newRoute[i]];
+        
+                            const newDistance = calculateDistance(newRoute);
+                            if (newDistance < currentDistance) {
+                                currentRoute = newRoute;
+                                currentDistance = newDistance;
+                                improved = true;
+                                break; // İyileştirme bulundu, yeni tur başlat
+                            }
+                        }
+                        if (improved) break;
+                    }
+                }
+        
+                return currentRoute;
+            }
+        }
         class MemeticAlgorithm extends GeneticAlgorithm {
-            constructor(cities, popSize = 50, eliteSize = 10, mutationRate = 0.01, localSearchIter = 50) {
+            constructor(cities, popSize = 50, eliteSize = 10, mutationRate = 0.01, localSearchIter = 50, optimizationMethod = 'twoOpt') {
                 super(cities, popSize, eliteSize, mutationRate);
                 this.localSearchIter = localSearchIter;
+                this.optimizationMethod = optimizationMethod;
             }
-
+        
+            setOptimizationMethod(method) {
+                this.optimizationMethod = method;
+            }
+        
             localSearch(route) {
                 let bestRoute = [...route];
-                let bestDistance = this.calculateRouteDistance(bestRoute);
-
-                for (let iter = 0; iter < this.localSearchIter; iter++) {
-                    // 2-opt swap
-                    const i = Math.floor(Math.random() * route.length);
-                    const j = Math.floor(Math.random() * route.length);
+                let iterations = 0;
+        
+                while (iterations < this.localSearchIter) {
+                    iterations++;
                     
-                    const newRoute = [...bestRoute];
-                    [newRoute[i], newRoute[j]] = [newRoute[j], newRoute[i]];
-                    
-                    const newDistance = this.calculateRouteDistance(newRoute);
-                    if (newDistance < bestDistance) {
-                        bestDistance = newDistance;
+                    // Seçilen optimizasyon yöntemini uygula
+                    const newRoute = OptimizationStrategies[this.optimizationMethod](
+                        bestRoute, 
+                        (r) => this.calculateRouteDistance(r)
+                    );
+        
+                    if (this.calculateRouteDistance(newRoute) < this.calculateRouteDistance(bestRoute)) {
                         bestRoute = newRoute;
                     }
                 }
-
+        
                 return bestRoute;
             }
-
+        
             nextGeneration(population) {
                 const nextGen = super.nextGeneration(population);
                 
-                // Apply local search to elite individuals
                 for (let i = 0; i < this.eliteSize; i++) {
                     nextGen[i] = this.localSearch(nextGen[i]);
                 }
@@ -208,6 +302,15 @@
                     this.height = 300;
                 });
             };
+
+            // Optimizasyon yöntemi değiştiğinde
+            $('#optimizationMethod').on('change', function() {
+                const selectedMethod = $(this).val();
+                if (window.ma) {
+                    window.ma.setOptimizationMethod(selectedMethod);
+                }
+            });
+
 
             // Grafik güncelleme fonksiyonu
             const updateChart = (gaProgress, maProgress) => {
@@ -268,19 +371,22 @@
 
             // Ana karşılaştırma fonksiyonu
             const runComparison = async () => {
-			$('#progressModal').modal('show');
+			// $('#progressModal').modal('show');
                 const params = {
                     numCities: parseInt($('#numCities').val()),
                     popSize: parseInt($('#popSize').val()),
                     generations: parseInt($('#generations').val()),
                     eliteSize: parseInt($('#eliteSize').val()),
-                    mutationRate: parseFloat($('#mutationRate').val())
+                    mutationRate: parseFloat($('#mutationRate').val()),
+                    optimizationMethod: $('#optimizationMethod').val()
                 };
 
                 const cities = generateCities(params.numCities);
                 const ga = new GeneticAlgorithm(cities, params.popSize, params.eliteSize, params.mutationRate);
-                const ma = new MemeticAlgorithm(cities, params.popSize, params.eliteSize, params.mutationRate);
-                
+                const ma = new MemeticAlgorithm(cities, params.popSize, params.eliteSize, params.mutationRate,
+                    50, // localSearchIter
+                    params.optimizationMethod);
+                window.ma = ma; 
                 let [gaPop, maPop] = [ga.createInitialPopulation(), ma.createInitialPopulation()];
                 let [gaProgress, maProgress] = [[], []];
                 
@@ -302,9 +408,9 @@
                     drawRoute($('#maCanvas')[0], maPop[maRanked[0].index]);
                     $('#maStats').text(`Best distance: ${maRanked[0].distance.toFixed(2)}`);
 
-					const progress = (gen / params.generations) * 100;
-					$('.progress-bar').css('width', progress + '%');
-					$('#progressText').text(`Generation: ${gen + 1}`);																					
+					// const progress = (gen / params.generations) * 100;
+					// $('.progress-bar').css('width', progress + '%');
+					// $('#progressText').text(`Generation: ${gen + 1}`);																					
                     // Her 5 jenerasyonda bir grafiği güncelle
                     if(gen % 5 === 0) updateChart(gaProgress, maProgress);
                     
@@ -315,7 +421,7 @@
                 // Son güncelleme ve butonu aktif et
                 updateChart(gaProgress, maProgress);
                 $('#runButton').prop('disabled', false);
-				$('#progressModal').modal('hide');
+				// $('#progressModal').modal('hide');
             };
 
             // Event listener'ları ekle

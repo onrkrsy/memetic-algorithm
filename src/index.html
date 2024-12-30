@@ -66,6 +66,18 @@
                         <label for="mutationRate" class="form-label">Mutation Rate:</label>
                         <input type="number" class="form-control" id="mutationRate" value="0.01" min="0" max="1" step="0.01">
                     </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="form-group">
+                            <label for="optimizationMethod">Optimization Method:</label>
+                            <select class="form-control" id="optimizationMethod">
+                                <option value="simpleSwap">Simple Swap</option>
+                                <option value="twoOpt" selected>2-opt</option>
+                                <option value="hillClimbing">Hill Climbing</option>
+                            </select>
+                        </div>
+                    </div> 
+                </div>
+                <div class="row">
                     <div class="col-md-4 mb-3 d-flex align-items-end">
                         <button id="runButton" class="btn btn-primary w-100">
                             <i class="bi bi-play-fill"></i> Run Comparison
