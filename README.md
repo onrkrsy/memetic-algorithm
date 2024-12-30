@@ -12,7 +12,7 @@
 - [Uygulama Örnekleri](#uygulama-örnekleri)
 - [Kullanım](#kullanım)
 
-## Genel Bakış
+## Genel Bakış 
 
 Bu uygulama, Gezgin Satıcı Problemi'ni (TSP) çözmek için Genetik Algoritma (GA) ve Memetik Algoritma (MA) yaklaşımlarını birleştirir. Temel fark, MA'nın yerel arama optimizasyonunu içermesidir.
 
@@ -23,19 +23,19 @@ Bu uygulama, Gezgin Satıcı Problemi'ni (TSP) çözmek için Genetik Algoritma 
 İlk nesil rastgele çözümleri oluşturur.
 
 ```javascript
-class GenetikAlgoritma {
-    baslangicPopulasyonuOlustur() {
-        return Array.from({ length: this.popBoyutu }, () => 
-            this.diziKaristir([...this.sehirler]));
+class GeneticAlgorithm {
+    createInitialPopulation() {
+        return Array.from({ length: this.popSize }, () => 
+            this.shuffleArray([...this.cities]));
     }
 }
 
 // Örnek:
 // Popülasyon boyutu = 50
 // Her birey = Tüm şehirler için rastgele bir rota
-baslangicPopulasyonu = [
-    [sehir1, sehir4, sehir2, sehir3], // Birey 1
-    [sehir2, sehir1, sehir3, sehir4], // Birey 2
+initialPopulation = [
+    [city1, city4, city2, city3], // Birey 1
+    [city2, city1, city3, city4], // Birey 2
     // ... 48 birey daha
 ]
 ```
@@ -45,28 +45,28 @@ baslangicPopulasyonu = [
 Her çözümü toplam rota mesafesine göre değerlendirir ve sıralar.
 
 ```javascript
-rotaMesafesiHesapla(rota) {
-    let mesafe = 0;
-    for (let i = 0; i < rota.length; i++) {
-        const kaynak = rota[i];
-        const hedef = rota[(i + 1) % rota.length];
-        mesafe += kaynak.mesafe(hedef);
+calculateRouteDistance(route) {
+    let distance = 0;
+    for (let i = 0; i < route.length; i++) {
+        const from = route[i];
+        const to = route[(i + 1) % route.length];
+        distance += from.distance(to);
     }
-    return mesafe;
+    return distance;
 }
 
-rotalariSirala(populasyon) {
-    const rotaMesafeleri = populasyon.map((rota, index) => ({
+rankRoutes(population) {
+    const routeDistances = population.map((route, index) => ({
         index,
-        mesafe: this.rotaMesafesiHesapla(rota)
+        distance: this.calculateRouteDistance(route)
     }));
-    return rotaMesafeleri.sort((a, b) => a.mesafe - b.mesafe);
+    return routeDistances.sort((a, b) => a.distance - b.distance);
 }
 
 // Örnek çıktı:
-siraliPopulasyon = [
-    {index: 5, mesafe: 100},  // En iyi rota
-    {index: 12, mesafe: 120}, // İkinci en iyi
+rankedPopulation = [
+    {index: 5, distance: 100},  // En iyi rota
+    {index: 12, distance: 120}, // İkinci en iyi
     // ... diğer rotalar
 ]
 ```
@@ -76,30 +76,30 @@ siraliPopulasyon = [
 Elit seçim ve uygunluk orantılı seçim kullanarak çaprazlama için bireyleri seçer.
 
 ```javascript
-secilim(siraliPopulasyon, populasyon) {
-    const secimSonuclari = [];
+selection(rankedPopulation, population) {
+    const selectionResults = [];
     
     // Elit seçim (örn. en iyi 10)
-    for (let i = 0; i < this.elitBoyutu; i++) {
-        secimSonuclari.push(populasyon[siraliPopulasyon[i].index]);
+    for (let i = 0; i < this.eliteSize; i++) {
+        selectionResults.push(population[rankedPopulation[i].index]);
     }
 
     // Kalan yerler için uygunluk orantılı seçim
-    const uygunlukPuanlari = siraliPopulasyon.map(rota => 1 / (1 + rota.mesafe));
-    const toplamUygunluk = uygunlukPuanlari.reduce((a, b) => a + b, 0);
-    const olasiliklar = uygunlukPuanlari.map(puan => puan / toplamUygunluk);
+    const fitnessScores = rankedPopulation.map(route => 1 / (1 + route.distance));
+    const totalFitness = fitnessScores.reduce((a, b) => a + b, 0);
+    const probabilities = fitnessScores.map(score => score / totalFitness);
     
-    while (secimSonuclari.length < this.popBoyutu) {
-        const secim = Math.random();
-        for (let i = 0; i < kumulatifOlasiliklar.length; i++) {
-            if (secim <= kumulatifOlasiliklar[i]) {
-                secimSonuclari.push(populasyon[siraliPopulasyon[i].index]);
+    while (selectionResults.length < this.popSize) {
+        const pick = Math.random();
+        for (let i = 0; i < cumulativeProbabilities.length; i++) {
+            if (pick <= cumulativeProbabilities[i]) {
+                selectionResults.push(population[rankedPopulation[i].index]);
                 break;
             }
         }
     }
     
-    return secimSonuclari;
+    return selectionResults;
 }
 ```
 
@@ -108,39 +108,38 @@ secilim(siraliPopulasyon, populasyon) {
 Seçilen ebeveynleri birleştirerek yeni çözümler oluşturur.
 
 ```javascript
-caprazla(ebeveyn1, ebeveyn2) {
-    const cocuk = Array(ebeveyn1.length).fill(null);
+breed(parent1, parent2) {
+    const child = Array(parent1.length).fill(null);
     
     // Ebeveyn1'den alt küme seç
-    const baslangicPoz = Math.floor(Math.random() * ebeveyn1.length);
-    const bitisPoz = Math.floor(Math.random() * ebeveyn1.length);
+    const startPos = Math.floor(Math.random() * parent1.length);
+    const endPos = Math.floor(Math.random() * parent1.length);
     
     // Ebeveyn1'den seçilen bölümü kopyala
-    const [baslangic, bitis] = [Math.min(baslangicPoz, bitisPoz), 
-                               Math.max(baslangicPoz, bitisPoz)];
-    for (let i = baslangic; i <= bitis; i++) {
-        cocuk[i] = ebeveyn1[i];
+    const [start, end] = [Math.min(startPos, endPos), Math.max(startPos, endPos)];
+    for (let i = start; i <= end; i++) {
+        child[i] = parent1[i];
     }
     
     // Kalan pozisyonları ebeveyn2'den doldur
-    let cocukPoz = 0;
-    for (const sehir of ebeveyn2) {
-        if (!cocuk.includes(sehir)) {
-            while (cocuk[cocukPoz] !== null) {
-                cocukPoz++;
+    let childPos = 0;
+    for (const city of parent2) {
+        if (!child.includes(city)) {
+            while (child[childPos] !== null) {
+                childPos++;
             }
-            cocuk[cocukPoz] = sehir;
+            child[childPos] = city;
         }
     }
     
-    return cocuk;
+    return child;
 }
 
 // Örnek:
-// ebeveyn1: [sehir1, sehir2, sehir3, sehir4]
-// ebeveyn2: [sehir2, sehir4, sehir1, sehir3]
-// ebeveyn1'den seçilen bölüm: sehir2, sehir3
-// sonuç çocuk: [sehir4, sehir2, sehir3, sehir1]
+// parent1: [city1, city2, city3, city4]
+// parent2: [city2, city4, city1, city3]
+// parent1'den seçilen bölüm: city2, city3
+// sonuç child: [city4, city2, city3, city1]
 ```
 
 ### 5. Mutasyon
@@ -148,14 +147,14 @@ caprazla(ebeveyn1, ebeveyn2) {
 Çeşitliliği korumak için küçük rastgele değişiklikler yapar.
 
 ```javascript
-mutasyon(rota) {
-    for (let i = 0; i < rota.length; i++) {
-        if (Math.random() < this.mutasyonOrani) { // genellikle 0.01
-            const j = Math.floor(Math.random() * rota.length);
-            [rota[i], rota[j]] = [rota[j], rota[i]];
+mutate(route) {
+    for (let i = 0; i < route.length; i++) {
+        if (Math.random() < this.mutationRate) { // genellikle 0.01
+            const j = Math.floor(Math.random() * route.length);
+            [route[i], route[j]] = [route[j], route[i]];
         }
     }
-    return rota;
+    return route;
 }
 ```
 
@@ -169,24 +168,24 @@ Memetik Algoritmada ek optimizasyon adımı. Şu şekillerde uygulanabilir:
 
 ```javascript
 // Örnek 1: Sadece elit bireylere yerel arama
-class MemetikAlgoritma extends GenetikAlgoritma {
-    sonrakiNesil(populasyon) {
-        const sonrakiNesil = super.sonrakiNesil(populasyon);
+class MemeticAlgorithm extends GeneticAlgorithm {
+    nextGeneration(population) {
+        const nextGen = super.nextGeneration(population);
         
         // Elit bireylere yerel arama uygula
-        for (let i = 0; i < this.elitBoyutu; i++) {
-            sonrakiNesil[i] = this.yerelArama(sonrakiNesil[i]);
+        for (let i = 0; i < this.eliteSize; i++) {
+            nextGen[i] = this.localSearch(nextGen[i]);
         }
         
-        return sonrakiNesil;
+        return nextGen;
     }
 }
 
 // Örnek 2: Tüm popülasyona yerel arama
-class MemetikAlgoritma extends GenetikAlgoritma {
-    sonrakiNesil(populasyon) {
-        const sonrakiNesil = super.sonrakiNesil(populasyon);
-        return sonrakiNesil.map(birey => this.yerelArama(birey));
+class MemeticAlgorithm extends GeneticAlgorithm {
+    nextGeneration(population) {
+        const nextGen = super.nextGeneration(population);
+        return nextGen.map(individual => this.localSearch(individual));
     }
 }
 ```
@@ -195,23 +194,23 @@ class MemetikAlgoritma extends GenetikAlgoritma {
 
 ```javascript
 // Örnekleri oluştur
-const sehirler = sehirlerOlustur(20);
-const ga = new GenetikAlgoritma(sehirler, 50, 10, 0.01);
-const ma = new MemetikAlgoritma(sehirler, 50, 10, 0.01, 50, 'ikiOpt');
+const cities = generateCities(20);
+const ga = new GeneticAlgorithm(cities, 50, 10, 0.01);
+const ma = new MemeticAlgorithm(cities, 50, 10, 0.01, 50, 'twoOpt');
 
 // Tek nesil çalıştır
-let gaPopulasyon = ga.baslangicPopulasyonuOlustur();
-let maPopulasyon = ma.baslangicPopulasyonuOlustur();
+let gaPopulation = ga.createInitialPopulation();
+let maPopulation = ma.createInitialPopulation();
 
-gaPopulasyon = ga.sonrakiNesil(gaPopulasyon);
-maPopulasyon = ma.sonrakiNesil(maPopulasyon);
+gaPopulation = ga.nextGeneration(gaPopulation);
+maPopulation = ma.nextGeneration(maPopulation);
 
 // Parametreler:
-// - Popülasyon boyutu: 50
-// - Elit boyutu: 10
-// - Mutasyon oranı: 0.01
-// - Yerel arama iterasyonu: 50
-// - Optimizasyon yöntemi: 'ikiOpt'
+// - Population size: 50
+// - Elite size: 10
+// - Mutation rate: 0.01
+// - Local search iterations: 50
+// - Optimization method: 'twoOpt'
 ```
 
 ## Algoritma Akışı
@@ -226,4 +225,4 @@ maPopulasyon = ma.sonrakiNesil(maPopulasyon);
    - Memetik için: Yerel arama uygula
 3. Maksimum nesil sayısına ulaşana kadar tekrarla
 
-Bu uygulama, TSP'yi çözmek için hem genetik hem de memetik yaklaşımları kullanmayı sağlayan esnek bir çerçeve sunar. En iyi performans için çeşitli parametreler ayarlanabilir.
+Bu uygulama, TSP'yi çözmek için hem genetik hem de memetik yaklaşımları kullanır. En iyi performans için çeşitli parametreler ayarlanabilir.
