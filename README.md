@@ -15,6 +15,9 @@
 ## Genel Bakış 
 
 Bu uygulama, Gezgin Satıcı Problemi'ni (TSP) çözmek için Genetik Algoritma (GA) ve Memetik Algoritma (MA) yaklaşımlarını birleştirir. Temel fark, MA'nın yerel arama optimizasyonunu içermesidir.
+### Ekran Görüntüsü
+![image](https://github.com/user-attachments/assets/4dadd789-bc42-4b07-a275-09c3daa6d73b)
+
 
 ## Algoritma Bileşenleri
 
